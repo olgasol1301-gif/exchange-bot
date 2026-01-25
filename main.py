@@ -9,7 +9,9 @@ from telegram.ext import (
     filters
 )
 
-BOT_TOKEN = "8242146856:AAGm2xmkRu4Q-33prGV_76dq4CZvD6cPCqo"
+import os
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPERATOR_USERNAME = "@olya_so1"
 
 users = {}  # user_id: {"returning": True, "country": None, "amount": None}
