@@ -25,12 +25,16 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True
 )
-
+def ensure_user(user_id):
+    if user_id not in users:
+        users[user_id] = {}
+        
 def is_returning(user_id):
     return user_id in users
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update, context):
     user_id = update.effective_user.id
+    ensure_user(user_id)
 
     if is_returning(user_id):
         text = (
@@ -50,8 +54,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text, reply_markup=MAIN_KEYBOARD)
 
-async def country_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def country_selected(update, context):
     user_id = update.effective_user.id
+    ensure_user(user_id)
     users[user_id]["country"] = update.message.text
 
     await update.message.reply_text(
@@ -61,8 +66,9 @@ async def country_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=ReplyKeyboardMarkup([["🔁 Выбрать другую страну"]], resize_keyboard=True)
     )
 
-async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def amount_received(update, context):
     user_id = update.effective_user.id
+    ensure_user(user_id)
     users[user_id]["amount"] = update.message.text
 
     await update.message.reply_text(
