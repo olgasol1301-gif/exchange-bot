@@ -150,10 +150,28 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Regex("🔁"), back_to_start))
-    app.add_handler(MessageHandler(filters.Regex("🧑‍💼"), contact_operator))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, country_selected))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, amount_received))
+
+    # кнопка "выбрать другую страну"
+    app.add_handler(MessageHandler(filters.Regex("^🔁"), back_to_start))
+
+    # кнопка "написать оператору"
+    app.add_handler(MessageHandler(filters.Regex("^🧑‍💼"), contact_operator))
+
+    # выбор страны (ТОЛЬКО кнопки)
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex("🇱🇰|🇻🇳|🇹🇭|💳|🌍"),
+            country_selected,
+        )
+    )
+
+    # ввод суммы (любой текст ПОСЛЕ выбора страны)
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            amount_received,
+        )
+    )
 
     app.run_polling()
 
