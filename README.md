@@ -7,7 +7,7 @@ from telegram.ext import (
     filters
 )
 
-BOT_TOKEN = "8242146856:AAHMVLxmX-Np__J7t1r8xFwA7bEZPp2cY08"
+BOT_TOKEN = "8242146856:AAET7AShnne3twgV5Nzq_PgJ8bR5YK2qBME"
 OPERATOR_USERNAME = "@olya_so1"
 
 users = {}  # user_id: {"returning": True, "country": None, "amount": None}
