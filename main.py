@@ -9,7 +9,10 @@ from telegram.ext import (
 import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPERATOR_USERNAME = "@YOUR_OPERATOR_USERNAME"  # ← замени
+
+# ❗ ОБЯЗАТЕЛЬНО chat_id, не username
+OPERATOR_CHAT_ID = 530982753  # ← вставь сюда ID оператора
+OPERATOR_USERNAME = "@olya_so1"
 
 users = {}
 
@@ -46,7 +49,9 @@ COUNTRY_OPTIONS = [
 def ensure_user(user_id: int):
     if user_id not in users:
         users[user_id] = {
-            "step": "start",  # start → country → amount
+            "step": "start",
+            "country": None,
+            "amount": None,
         }
 
 # ---------- ХЕНДЛЕРЫ ----------
@@ -60,7 +65,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Здравствуйте 👋\n\n"
         "Здесь вы можете безопасно и удобно обменять валюту в Азии 💱\n\n"
-        "Выберите страну или услугу 👇",
+        "Мы работаем с туристами и экспатами по всему миру и помогаем получать деньги "
+        "быстро, без лишних рисков и сложных схем 🌏\n\n"
+        "Выберите страну, где вы сейчас, или нужную услугу 👇",
         reply_markup=MAIN_KEYBOARD,
     )
 
@@ -68,14 +75,17 @@ async def country_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ensure_user(user_id)
 
-    if update.message.text not in COUNTRY_OPTIONS:
+    text = update.message.text
+    if text not in COUNTRY_OPTIONS:
         return
 
+    users[user_id]["country"] = text
     users[user_id]["step"] = "amount"
 
     await update.message.reply_text(
         "Введите сумму, которую хотите обменять.\n\n"
-        "Например: 1000 USD / 3000 USDT / 150 000 RUB"
+        "Можно написать в любой валюте:\n"
+        "например: 1000 USD / 3000 USDT / 150 000 RUB"
     )
 
 async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -85,12 +95,36 @@ async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if users[user_id]["step"] != "amount":
         return
 
-    users[user_id]["step"] = "country"  # ❗ сразу разрешаем новый выбор
+    users[user_id]["amount"] = update.message.text
+    users[user_id]["step"] = "country"
 
+    # -------- уведомление оператору --------
+    user = update.effective_user
+    message_to_operator = (
+        "📩 НОВАЯ ЗАЯВКА\n\n"
+        f"👤 Пользователь: @{user.username or 'без username'}\n"
+        f"🆔 ID: {user.id}\n"
+        f"🌍 Страна: {users[user_id]['country']}\n"
+        f"💰 Сумма: {users[user_id]['amount']}"
+    )
+
+    await context.bot.send_message(
+        chat_id=OPERATOR_CHAT_ID,
+        text=message_to_operator,
+    )
+
+    # -------- ответ клиенту --------
     await update.message.reply_text(
         "Отлично 👍\n"
-        "Заявка передана оператору.\n\n"
-        "Он напишет вам для уточнения деталей.",
+        "Мы передали заявку оператору.\n\n"
+        "Он напишет вам и уточнит детали:\n"
+        "курс, способ получения и время."
+    )
+
+    await update.message.reply_text(
+        f"❗️Важно\n\n"
+        f"С вами работает только один официальный оператор сервиса — {OPERATOR_USERNAME}\n\n"
+        f"Если вам пишут с других аккаунтов — это мошенники.",
         reply_markup=AFTER_REQUEST_KEYBOARD,
     )
 
