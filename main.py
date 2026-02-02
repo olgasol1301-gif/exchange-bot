@@ -1,3 +1,4 @@
+import os
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -7,14 +8,24 @@ from telegram.ext import (
     filters,
 )
 
-import os
+# ================== НАСТРОЙКИ ==================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # токен в Railway
-OPERATOR_USERNAME = "@olya_so1"  # замени на реальный
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # токен ТОЛЬКО из Railway
+OPERATOR_USERNAME = "@YOUR_USERNAME"  # <-- замени на свой юзернейм
+
+# ================== ХРАНЕНИЕ СОСТОЯНИЯ ==================
 
 users = {}
 
-# ---------- КНОПКИ ----------
+def ensure_user(user_id: int):
+    if user_id not in users:
+        users[user_id] = {
+            "returning": False,
+            "country": None,
+            "amount": None,
+        }
+
+# ================== КНОПКИ ==================
 
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
     [
@@ -44,17 +55,7 @@ COUNTRY_OPTIONS = [
     "🌍 Другая страна",
 ]
 
-# ---------- ВСПОМОГАТЕЛЬНЫЕ ----------
-
-def ensure_user(user_id: int):
-    if user_id not in users:
-        users[user_id] = {
-            "returning": False,
-            "country": None,
-            "amount": None,
-        }
-
-# ---------- ХЕНДЛЕРЫ ----------
+# ================== ХЕНДЛЕРЫ ==================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -89,6 +90,7 @@ async def country_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     users[user_id]["country"] = text
+    users[user_id]["amount"] = None
 
     await update.message.reply_text(
         "Введите сумму, которую хотите обменять.\n\n"
@@ -102,9 +104,7 @@ async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ensure_user(user_id)
 
-    text = update.message.text
-
-    # защита от случайных сообщений
+    # если страна не выбрана — НЕ принимаем текст как заявку
     if users[user_id]["country"] is None:
         await update.message.reply_text(
             "Пожалуйста, сначала выберите страну 👇",
@@ -112,7 +112,7 @@ async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    users[user_id]["amount"] = text
+    users[user_id]["amount"] = update.message.text
 
     await update.message.reply_text(
         "Отлично 👍\n"
@@ -144,20 +144,19 @@ async def contact_operator(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Напишите оператору напрямую: {OPERATOR_USERNAME}"
     )
 
-# ---------- ЗАПУСК ----------
+# ================== ЗАПУСК ==================
 
 def main():
+    if not BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN не найден в переменных окружения")
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
 
-    # кнопка "выбрать другую страну"
     app.add_handler(MessageHandler(filters.Regex("^🔁"), back_to_start))
-
-    # кнопка "написать оператору"
     app.add_handler(MessageHandler(filters.Regex("^🧑‍💼"), contact_operator))
 
-    # выбор страны (ТОЛЬКО кнопки)
     app.add_handler(
         MessageHandler(
             filters.TEXT & filters.Regex("🇱🇰|🇻🇳|🇹🇭|💳|🌍"),
@@ -165,7 +164,6 @@ def main():
         )
     )
 
-    # ввод суммы (любой текст ПОСЛЕ выбора страны)
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
