@@ -1,4 +1,3 @@
-import os
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -7,24 +6,14 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+import os
 
 # ================== НАСТРОЙКИ ==================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # токен ТОЛЬКО из Railway
-OPERATOR_USERNAME = "@YOUR_USERNAME"  # <-- замени на свой юзернейм
-
-# ================== ХРАНЕНИЕ СОСТОЯНИЯ ==================
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # токен ТОЛЬКО через Railway
+OPERATOR_USERNAME = "@YOUR_OPERATOR_USERNAME"  # ← замени
 
 users = {}
-
-def ensure_user(user_id: int):
-    if user_id not in users:
-        users[user_id] = {
-            "returning": False,
-            "country": None,
-            "amount": None,
-            "step": "start",
-        }
 
 # ================== КНОПКИ ==================
 
@@ -56,11 +45,24 @@ COUNTRY_OPTIONS = [
     "🌍 Другая страна",
 ]
 
+# ================== ВСПОМОГАТЕЛЬНОЕ ==================
+
+def ensure_user(user_id: int):
+    if user_id not in users:
+        users[user_id] = {
+            "returning": False,
+            "country": None,
+            "amount": None,
+            "step": "start",  # start → country → amount → done
+        }
+
 # ================== ХЕНДЛЕРЫ ==================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ensure_user(user_id)
+
+    users[user_id]["step"] = "country"
 
     if users[user_id]["returning"]:
         text = (
@@ -92,6 +94,7 @@ async def country_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     users[user_id]["country"] = text
     users[user_id]["amount"] = None
+    users[user_id]["step"] = "amount"
 
     await update.message.reply_text(
         "Введите сумму, которую хотите обменять.\n\n"
@@ -105,15 +108,12 @@ async def amount_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     ensure_user(user_id)
 
-    # если страна не выбрана — НЕ принимаем текст как заявку
-    if users[user_id]["country"] is None:
-        await update.message.reply_text(
-            "Пожалуйста, сначала выберите страну 👇",
-            reply_markup=MAIN_KEYBOARD,
-        )
+    # ❗ защита от ложных срабатываний
+    if users[user_id]["step"] != "amount":
         return
 
     users[user_id]["amount"] = update.message.text
+    users[user_id]["step"] = "done"
 
     await update.message.reply_text(
         "Отлично 👍\n"
@@ -136,6 +136,7 @@ async def back_to_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     users[user_id]["country"] = None
     users[user_id]["amount"] = None
+    users[user_id]["step"] = "country"
 
     await start(update, context)
 
@@ -148,9 +149,6 @@ async def contact_operator(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================== ЗАПУСК ==================
 
 def main():
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN не найден в переменных окружения")
-
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
