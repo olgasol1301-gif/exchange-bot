@@ -11,7 +11,7 @@ import os
 # ================== НАСТРОЙКИ ==================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")  # токен ТОЛЬКО через Railway
-OPERATOR_USERNAME = "@YOUR_OPERATOR_USERNAME"  # ← замени
+OPERATOR_USERNAME = "@olya_so1"  # ← замени
 
 users = {}
 
