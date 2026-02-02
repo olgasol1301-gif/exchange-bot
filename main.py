@@ -23,6 +23,7 @@ def ensure_user(user_id: int):
             "returning": False,
             "country": None,
             "amount": None,
+            "step": "start",
         }
 
 # ================== КНОПКИ ==================
